@@ -15,6 +15,8 @@ const administrarCitas = new Citas();
 
 let editando = false;
 
+export let DB;
+
 //Objeto con la información de la cita
 const citaObj = {
     mascota: '',
@@ -45,14 +47,31 @@ export function nuevaCita(e) {
     }
 
     if(editando) {
-        // Estamos editando
-        administrarCitas.editarCita( {...citaObj} );
+        // NUEVO: 
+        const transaction = DB.transaction(['citas'], 'readwrite');
+        const objectStore = transaction.objectStore('citas');
+        // console.log(objectStore);
+        const peticion = objectStore.put(citaObj);
 
-        ui.imprimirAlerta('Guardado Correctamente');
+        transaction.oncomplete = () => {
 
-        formulario.querySelector('button[type="submit"]').textContent = 'Crear Cita';
+            console.log('Editado Correctamente.')
+            
+            // Mover el código aqui..
+            // Estamos editando
+            administrarCitas.editarCita( {...citaObj} );
 
-        editando = false;
+            ui.imprimirAlerta('Guardado Correctamente');
+
+            formulario.querySelector('button[type="submit"]').textContent = 'Crear Cita';
+
+            editando = false;
+        }
+
+        transaction.onerror = () => {
+            console.log('Hubo un errorr.')
+        }
+
 
     } else {
         // Nuevo Registrando
@@ -63,13 +82,29 @@ export function nuevaCita(e) {
         // Añade la nueva cita
         administrarCitas.agregarCita({...citaObj});
 
-        // Mostrar mensaje de que todo esta bien...
-        ui.imprimirAlerta('Se agregó correctamente')
+
+        // NUEVO: 
+        const transaction = DB.transaction(['citas'], 'readwrite');
+        const objectStore = transaction.objectStore('citas');
+        // console.log(objectStore);
+        const peticion = objectStore.add(citaObj);
+
+        transaction.oncomplete = () => {
+            console.log('Cita agregada!');
+
+            // Mostrar mensaje de que todo esta bien...
+            ui.imprimirAlerta('Se agregó correctamente')
+
+        }
+
+        transaction.onerror = () => {
+            console.log('Hubo un error!');
+        }
     }
 
 
         // Imprimir el HTML de citas
-        ui.imprimirCitas(administrarCitas);
+        ui.imprimirCitas();
 
         // Reinicia el objeto para evitar futuros problemas de validación
         reiniciarObjeto();
@@ -89,11 +124,27 @@ export function reiniciarObjeto() {
 }
 
 export function eliminarCita(id) {
-    administrarCitas.eliminarCita(id);
+    // NUEVO:
+    const transaction = DB.transaction(['citas'], 'readwrite');
+    const objectStore = transaction.objectStore('citas');
+    
+    const resultado =  objectStore.delete(id);
 
+    // console.log( objectStore);
+    // console.log( resultado);
+
+
+    transaction.oncomplete = () => {
+        console.log(`Cita  ${id} fue eliminado`);
+        administrarCitas.eliminarCita(id);
+        ui.imprimirCitas()
+    }
+
+
+    transaction.onerror = () => {
+        console.log('Hubo un error!');
+    }
     ui.imprimirAlerta('La cita se eliminó correctamente');
-
-    ui.imprimirCitas(administrarCitas);
 }
 
 export function cargarEdicion(cita) {
@@ -120,4 +171,50 @@ export function cargarEdicion(cita) {
     formulario.querySelector('button[type="submit"]').textContent = 'Guardar Cambios';
 
     editando = true;
+}
+
+// Código de IndexedDB
+ export function crearDB() {
+    // crear base de datos con la versión 1
+    const crearDB = window.indexedDB.open('citas', 1);
+
+    // si hay un error, lanzarlo
+    crearDB.onerror = function() {
+        console.log('Hubo un error');
+    }
+
+    // si todo esta bien, asignar a database el resultado
+    crearDB.onsuccess = function() {
+        console.log('Citas Listo!');
+
+        // guardamos el resultado
+        DB = crearDB.result;
+
+        // mostrar citas al cargar
+        ui.imprimirCitas()
+    }
+
+    // este método solo corre una vez
+    crearDB.onupgradeneeded = function(e) {
+        // el evento que se va a correr tomamos la base de datos
+        const db = e.target.result;
+
+        
+        // definir el objectstore, primer parametro el nombre de la BD, segundo las opciones
+        // keypath es de donde se van a obtener los indices
+        const objectStore = db.createObjectStore('citas', { keyPath: 'id',  autoIncrement: true } );
+
+        //createindex, nombre y keypath, 3ro los parametros
+        objectStore.createIndex('mascota', 'mascota', { unique: false } );
+        objectStore.createIndex('cliente', 'cliente', { unique: false } );
+        objectStore.createIndex('telefono', 'telefono', { unique: false } );
+        objectStore.createIndex('fecha', 'fecha', { unique: false } );
+        objectStore.createIndex('hora', 'hora', { unique: false } );
+        objectStore.createIndex('sintomas', 'sintomas', { unique: false } );
+        objectStore.createIndex('id', 'id', { unique: true } );
+
+        
+
+        console.log('Database creada y lista');
+    }
 }

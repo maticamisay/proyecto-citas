@@ -5,7 +5,6 @@ class Citas {
     }
     agregarCita(cita) {
         this.citas = [...this.citas, cita];
-        console.log(this.citas);
     }
     editarCita(citaActualizada) {
         this.citas = this.citas.map( cita => cita.id === citaActualizada.id ? citaActualizada : cita)

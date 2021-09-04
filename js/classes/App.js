@@ -1,4 +1,4 @@
-import {datosCita, nuevaCita} from '../Funciones.js';
+import {datosCita, nuevaCita, crearDB} from '../Funciones.js';
 import {
     mascotaInput, 
     propietarioInput, 
@@ -12,6 +12,7 @@ from '../Selectores.js';
 class App {
     constructor(){
         this.initApp();
+        crearDB();
     }
     initApp(){
         mascotaInput.addEventListener('change', datosCita);
